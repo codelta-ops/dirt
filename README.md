@@ -1,6 +1,6 @@
 # Dynamic Cognitive Diagnosis
 
-Source code  for the paper [Dynamic Cognitive Diagnosis: An Educational Priors-Enhanced Deep Knowledge Tracing Perspective](http://staff.ustc.edu.cn/~huangzhy/files/papers/FeiWang-TLT2023.pdf).
+Source code for the paper [Dynamic Cognitive Diagnosis: An Educational Priors-Enhanced Deep Knowledge Tracing Perspective](http://staff.ustc.edu.cn/~huangzhy/files/papers/FeiWang-TLT2023.pdf).
 
 
 
@@ -28,11 +28,31 @@ If this code helps with your studies, please kindly cite the following publicati
 
 
 
+## Project Structure
+
+- `models/`: core model implementations
+- `scripts/experiments/`: experiment runners, contrast scripts, and hyperparameter search helpers
+- `scripts/reports/`: result summarization and chapter table export scripts
+- `reports/`: generated chapter tables
+- `docs/`: notes and supporting documents
+- `data/`: processed dataset files
+
 ## Usage
 
-Just `python dirt.py` or `python dneuralcdm.py`.
+Run the main models from the repository root:
 
-Please refer to the codes to see how to setup the experiments.
+- `python models/dirt_baseline.py`
+- `python models/dneural_cdm.py`
+- `python models/dirt_plus.py`
+
+Useful helpers:
+
+- `python scripts/experiments/run_chapter3_experiments.py --mode print`
+- `python scripts/experiments/run_acc_contrast.py --mode print`
+- `python scripts/experiments/search_best_acc_dirt34.py --mode print`
+- `python scripts/reports/summarize_test_results.py --ws_root <workspace_dir>`
+- `python scripts/reports/export_chapter3_tables.py`
+- `python scripts/reports/export_final_chapter3_tables.py`
 
 
 
