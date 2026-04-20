@@ -46,6 +46,13 @@ def find_best_validation_record(records: List[Dict], stage: int) -> Optional[Dic
     return max(candidates, key=validation_priority_key)
 
 
+def latest_final_summary(records: List[Dict]) -> Optional[Dict]:
+    summaries = [r for r in records if r.get("dtype") == "final_summary"]
+    if not summaries:
+        return None
+    return summaries[-1]
+
+
 def parse_attr_idx_from_name(name: str) -> Optional[int]:
     match = re.search(r"DIRT_(\d+)$", name)
     if not match:
@@ -61,13 +68,6 @@ def find_workspace_dirs(ws_root: str) -> List[str]:
     return sorted(found)
 
 
-def pick_last_test_record(records: List[Dict]) -> Optional[Dict]:
-    tests = [r for r in records if r.get("dtype") == "test"]
-    if not tests:
-        return None
-    return tests[-1]
-
-
 def collect_workspace_row(ws_dir: str) -> Optional[Dict]:
     metrics_path = os.path.join(ws_dir, "metrics.jsonl")
     config_path = os.path.join(ws_dir, "model_config.txt")
@@ -75,9 +75,9 @@ def collect_workspace_row(ws_dir: str) -> Optional[Dict]:
         return None
 
     records = read_jsonl(metrics_path)
-    test_record = pick_last_test_record(records)
-    if test_record is None:
-        print(f"[warn] no test record: {ws_dir}")
+    final_summary = latest_final_summary(records)
+    if final_summary is None:
+        print(f"[warn] no final_summary record: {ws_dir}")
         return None
 
     config = {}
@@ -87,7 +87,7 @@ def collect_workspace_row(ws_dir: str) -> Optional[Dict]:
         except Exception as exc:  # noqa: BLE001
             print(f"[warn] failed to read config {config_path}: {exc}")
 
-    stage = int(test_record.get("stage", -1))
+    stage = int(final_summary.get("best_stage", final_summary.get("stage", -1)))
     best_val = find_best_validation_record(records, stage=stage)
 
     ws_name = os.path.basename(ws_dir.rstrip("/\\"))
@@ -99,16 +99,14 @@ def collect_workspace_row(ws_dir: str) -> Optional[Dict]:
         "workspace": ws_name,
         "workspace_path": ws_dir,
         "attr_idx": attr_idx if attr_idx is not None else "",
-        "test_stage": stage,
-        "test_epoch": int(test_record.get("epoch", -1)),
-        "test_auc": float(test_record.get("auc", 0.0)),
-        "test_acc": float(test_record.get("acc", 0.0)),
-        "test_rmse": float(test_record.get("rmse", 0.0)),
-        "test_pred_loss": float(test_record.get("pred_loss", 0.0)),
-        "best_val_epoch_same_stage": int(best_val.get("epoch", -1)) if best_val else "",
-        "best_val_auc_same_stage": float(best_val.get("auc", 0.0)) if best_val else "",
-        "best_val_acc_same_stage": float(best_val.get("acc", 0.0)) if best_val else "",
-        "best_val_rmse_same_stage": float(best_val.get("rmse", 0.0)) if best_val else "",
+        "best_stage": stage,
+        "best_epoch": int(final_summary.get("best_epoch", -1)),
+        "test_auc": float(final_summary.get("test_auc", 0.0)),
+        "test_acc": float(final_summary.get("test_acc", 0.0)),
+        "test_rmse": float(final_summary.get("test_rmse", 0.0)),
+        "validation_auc": float(final_summary.get("validation_auc", best_val.get("auc", 0.0) if best_val else 0.0)),
+        "validation_acc": float(final_summary.get("validation_acc", best_val.get("acc", 0.0) if best_val else 0.0)),
+        "validation_rmse": float(final_summary.get("validation_rmse", best_val.get("rmse", 0.0) if best_val else 0.0)),
         "use_multihead_temporal_attn": config.get("use_multihead_temporal_attn", ""),
         "use_multihead_query_attn": config.get("use_multihead_query_attn", ""),
         "multihead_temporal_num_heads": config.get("multihead_temporal_num_heads", ""),
@@ -139,7 +137,7 @@ def print_console_summary(rows: List[Dict]) -> None:
     print("-" * 100)
     header = (
         f"{'workspace':<18} {'attr':<4} {'stage':<5} {'epoch':<5} "
-        f"{'AUC':<10} {'ACC':<10} {'RMSE':<10} {'val_epoch':<8}"
+        f"{'AUC':<10} {'ACC':<10} {'RMSE':<10} {'val_auc':<10}"
     )
     print(header)
     print("-" * 100)
@@ -147,12 +145,12 @@ def print_console_summary(rows: List[Dict]) -> None:
         print(
             f"{str(r['workspace']):<18} "
             f"{str(r['attr_idx']):<4} "
-            f"{str(r['test_stage']):<5} "
-            f"{str(r['test_epoch']):<5} "
+            f"{str(r['best_stage']):<5} "
+            f"{str(r['best_epoch']):<5} "
             f"{r['test_auc']:<10.6f} "
             f"{r['test_acc']:<10.6f} "
             f"{r['test_rmse']:<10.6f} "
-            f"{str(r['best_val_epoch_same_stage']):<8}"
+            f"{r['validation_auc']:<10.6f}"
         )
     print("-" * 100)
     avg_auc = sum(float(r["test_auc"]) for r in rows) / len(rows)
@@ -176,7 +174,7 @@ def write_csv(rows: List[Dict], output_csv: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Collect and summarize DIRT/DIRT+ test metrics.")
-    parser.add_argument("--ws_root", type=str, default="ws/dirt_plus/assist09", help="Workspace root directory.")
+    parser.add_argument("--ws_root", type=str, default="ws/chapter3_runs", help="Workspace root directory.")
     parser.add_argument("--output_csv", type=str, default="", help="Output CSV path. Default: <ws_root>/test_summary.csv")
     args = parser.parse_args()
     os.chdir(PROJECT_ROOT)

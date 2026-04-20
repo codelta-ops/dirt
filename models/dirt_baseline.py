@@ -3,6 +3,8 @@ Dynamic CD
 RNN + IRT
 author: Fei Wang
 '''
+import ast
+import argparse
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -640,27 +642,37 @@ def run_all_dirt_experiments(ws_root, device, lr, base_ws_config):
 
 
 if __name__ == '__main__':
-    # global configuration
-    ws = 'ws/dirt/assist09'    # the root path of work spaces
-    device = 'cuda:0'   # the device on which to run the program
-    cross_idx = 0  # the index of cross validation dataset
-    lr = 0.002
+    parser = argparse.ArgumentParser(description='DIRT baseline implementation.')
+    parser.add_argument('--data', type=str, default='assist2009')
+    parser.add_argument('--cross_idx', type=int, default=0)
+    parser.add_argument('--device', type=str, default='cuda:0' if torch.cuda.is_available() else 'cpu')
+    parser.add_argument('--lr', type=float, default=0.002)
+    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--stu_ho_dim', type=int, default=50)
+    parser.add_argument('--rnn_type', type=str, default='gru')
+    parser.add_argument('--ws_root', type=str, default=None)
+    args = parser.parse_args()
 
-    # work space configuration, this should be run at least once before training
-    # the snapshots and results will be saved in this folder
-    data_name = 'assist2009'
-    # # default configuration, attr_idx in [1,2,3,4] for DIRT_1, DIRT_2, DIRT_3, DIRT_4 respectively
-    ws_config_dict = {'stu_ho_dim': 50, 'rnn_type': 'gru', 'attr_idx': 1, 'data': data_name, 'batch_size': 32}
-    # # data configuration, read from data_config.txt file
+    ws = args.ws_root if args.ws_root is not None else f'ws/dirt/{args.data}'
+    device = args.device
+    cross_idx = args.cross_idx
+    lr = args.lr
+    data_name = args.data
+
+    ws_config_dict = {
+        'stu_ho_dim': args.stu_ho_dim,
+        'rnn_type': args.rnn_type,
+        'attr_idx': 1,
+        'data': data_name,
+        'batch_size': args.batch_size
+    }
     with open(f'data/{data_name}/data_config.txt', encoding='utf8') as i_f:
-        data_config = eval(i_f.readline())
+        data_config = ast.literal_eval(i_f.readline())
     ws_config_dict['max_log'] = data_config['max_log']
     ws_config_dict['exer_n'] = data_config['exer_n']
     ws_config_dict['knowledge_n'] = data_config['knowledge_n']
     ws_config_dict['student_n'] = data_config['student_n']
 
-    # Train / validate / test DIRT_1 ~ DIRT_4 sequentially using the
-    # paper-aligned protocol. Each model writes to its own workspace.
     run_all_dirt_experiments(ws, device=device, lr=lr, base_ws_config=ws_config_dict)
 
 

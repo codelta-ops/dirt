@@ -1,0 +1,18 @@
+Setting,Value
+batch size,32
+stage1 epochs,N
+stage2 epochs,A / N/A
+stage1 lr,0.002
+stage2 lr,0.0006
+optimizer,Adam
+seed,2024
+Attention,Yes
+Query-guided aggregation,Yes
+loss_weight_mode,learnable
+use_confidence_consistency,Yes
+grad clip,5.0
+scheduler,ReduceLROnPlateau (monitor validation AUC)
+use_adaptive_fusion,1
+use_temporal_bias,1
+use_exercise_aware_decay,1
+use_state_consistency,0

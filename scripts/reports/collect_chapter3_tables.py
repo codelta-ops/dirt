@@ -1,3 +1,4 @@
+import ast
 import argparse
 import csv
 import json
@@ -12,7 +13,6 @@ EXPERIMENT_NAME_TO_VARIANT = {
     "full_model": "Full Model",
     "wo_attention": "w/o attention",
     "wo_query": "w/o query",
-    "wo_weight": "w/o weight",
     "wo_consistency": "w/o consistency",
 }
 
@@ -109,6 +109,13 @@ def test_record_for_epoch(records: List[Dict], stage: int, epoch: int) -> Option
     return None
 
 
+def latest_final_summary(records: List[Dict]) -> Optional[Dict]:
+    summaries = [r for r in records if r.get("dtype") == "final_summary"]
+    if not summaries:
+        return None
+    return summaries[-1]
+
+
 def aggregate_mean(rows: List[Dict], fields: List[str]) -> Dict:
     result = {}
     for field in fields:
@@ -120,7 +127,7 @@ def aggregate_mean(rows: List[Dict], fields: List[str]) -> Dict:
 def dataset_stats_row() -> Dict:
     cfg_path = os.path.join(PROJECT_ROOT, "data", DATASET_NAME, "data_config.txt")
     with open(cfg_path, "r", encoding="utf8") as f:
-        cfg = eval(f.read().strip())
+        cfg = ast.literal_eval(f.read().strip())
 
     interactions = 0
     correct = 0
@@ -161,6 +168,7 @@ def collect_experiment_results(ws_root: str) -> Dict[str, Dict[str, Dict]]:
                 continue
             records = read_jsonl(metrics_path)
             cfg = read_json(cfg_path) if os.path.exists(cfg_path) else {}
+            final_summary = latest_final_summary(records)
 
             if attr_dir_name in {"DIRT_1", "DIRT_2"}:
                 stages = [1]
@@ -174,20 +182,34 @@ def collect_experiment_results(ws_root: str) -> Dict[str, Dict[str, Dict]]:
                     continue
                 test_row = test_record_for_epoch(records, stage, int(best_val["epoch"]))
                 stage_rows[f"stage{stage}"] = {
-                    "AUC": float(best_val.get("auc", 0.0)),
-                    "ACC": float(best_val.get("acc", 0.0)),
-                    "RMSE": float(best_val.get("rmse", 0.0)),
+                    "Validation AUC": float(best_val.get("auc", 0.0)),
+                    "Validation ACC": float(best_val.get("acc", 0.0)),
+                    "Validation RMSE": float(best_val.get("rmse", 0.0)),
                     "Best Epoch": int(best_val.get("epoch", -1)),
                     "Test AUC": float(test_row.get("auc", 0.0)) if test_row else "N/A",
                     "Test ACC": float(test_row.get("acc", 0.0)) if test_row else "N/A",
                     "Test RMSE": float(test_row.get("rmse", 0.0)) if test_row else "N/A",
                 }
 
-            final_stage = "stage2" if "stage2" in stage_rows else "stage1"
-            final = stage_rows.get(final_stage, {})
+            final_stage = None
+            final = {}
+            if final_summary is not None:
+                best_stage = int(final_summary.get("best_stage", final_summary.get("stage", -1)))
+                final_stage = f"stage{best_stage}"
+                final = {
+                    "Validation AUC": float(final_summary.get("validation_auc", 0.0)),
+                    "Validation ACC": float(final_summary.get("validation_acc", 0.0)),
+                    "Validation RMSE": float(final_summary.get("validation_rmse", 0.0)),
+                    "Best Epoch": int(final_summary.get("best_epoch", -1)),
+                    "Test AUC": float(final_summary.get("test_auc", 0.0)),
+                    "Test ACC": float(final_summary.get("test_acc", 0.0)),
+                    "Test RMSE": float(final_summary.get("test_rmse", 0.0)),
+                }
             attr_map[attr_dir_name] = {
                 "config": cfg,
                 "stages": stage_rows,
+                "final_stage": final_stage,
+                "has_final_summary": final_summary is not None,
                 "final": final,
             }
         if attr_map:
@@ -200,6 +222,8 @@ def table1_main_results(results: Dict[str, Dict[str, Dict]]) -> List[Dict]:
     full = results.get("full_model", {})
     for attr_name in ["DIRT_1", "DIRT_2", "DIRT_3", "DIRT_4"]:
         if attr_name not in full:
+            continue
+        if not full[attr_name].get("has_final_summary"):
             continue
         final = full[attr_name]["final"]
         rows.append(
@@ -219,7 +243,7 @@ def table2_ablation(results: Dict[str, Dict[str, Dict]]) -> List[Dict]:
         exp = results.get(exp_name, {})
         final_rows = []
         for attr_name in ["DIRT_3", "DIRT_4"]:
-            if attr_name in exp and exp[attr_name]["final"]:
+            if attr_name in exp and exp[attr_name].get("has_final_summary") and exp[attr_name]["final"]:
                 final_rows.append(exp[attr_name]["final"])
         if not final_rows:
             rows.append({"Variant": variant_name, "AUC": "N/A", "ACC": "N/A", "RMSE": "N/A"})
@@ -241,15 +265,21 @@ def table3_stage_comparison(results: Dict[str, Dict[str, Dict]]) -> List[Dict]:
     full = results.get("full_model", {})
     for attr_name in ["DIRT_3", "DIRT_4"]:
         attr = full.get(attr_name, {})
+        if not attr.get("has_final_summary"):
+            continue
         for stage_name in ["stage1", "stage2"]:
             stage_row = attr.get("stages", {}).get(stage_name, {})
             rows.append(
                 {
                     "Model": f"DIRT+_{attr_name.split('_')[1]}",
                     "Stage": stage_name,
-                    "AUC": stage_row.get("AUC", "N/A"),
-                    "ACC": stage_row.get("ACC", "N/A"),
-                    "RMSE": stage_row.get("RMSE", "N/A"),
+                    "Validation AUC": stage_row.get("Validation AUC", "N/A"),
+                    "Validation ACC": stage_row.get("Validation ACC", "N/A"),
+                    "Validation RMSE": stage_row.get("Validation RMSE", "N/A"),
+                    "Test AUC": stage_row.get("Test AUC", "N/A"),
+                    "Test ACC": stage_row.get("Test ACC", "N/A"),
+                    "Test RMSE": stage_row.get("Test RMSE", "N/A"),
+                    "Best Epoch": stage_row.get("Best Epoch", "N/A"),
                 }
             )
     return rows
@@ -266,6 +296,10 @@ def table5_training_config(results: Dict[str, Dict[str, Dict]]) -> List[Dict]:
         if attr_name in full:
             cfg = full[attr_name].get("config", {})
             break
+    dynamic_weight_value = cfg.get("loss_weight_mode", "N/A")
+    if dynamic_weight_value == "plain":
+        dynamic_weight_value = "No"
+
     return [
         {"Setting": "batch size", "Value": cfg.get("batch_size", "N/A")},
         {"Setting": "epochs (stage1 / stage2)", "Value": f"{cfg.get('stage1_epochs', 10)} / {cfg.get('stage2_epochs', 5)}" if cfg else "N/A"},
@@ -274,7 +308,7 @@ def table5_training_config(results: Dict[str, Dict[str, Dict]]) -> List[Dict]:
         {"Setting": "seed", "Value": cfg.get("seed", "N/A")},
         {"Setting": "attention", "Value": "Yes" if int(cfg.get("use_temporal_self_attention", 1)) == 1 else "No"},
         {"Setting": "query", "Value": "Yes" if int(cfg.get("use_query_guided_attention", 1)) == 1 else "No"},
-        {"Setting": "dynamic weight", "Value": cfg.get("loss_weight_mode", "N/A")},
+        {"Setting": "dynamic weight", "Value": dynamic_weight_value},
         {"Setting": "consistency", "Value": "Yes" if int(cfg.get("use_confidence_consistency", 0)) == 1 else "No"},
     ]
 

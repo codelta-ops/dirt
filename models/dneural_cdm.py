@@ -3,6 +3,7 @@ Dynamic CD
 RNN + NeuralCDM
 author: Fei Wang
 '''
+import ast
 import fret
 import torch
 import torch.nn as nn
@@ -620,7 +621,7 @@ if __name__ == '__main__':
     ws_config_dict = {'stu_ho_dim': 50, 'rnn_type': 'gru', 'attr_idx': 1, 'data': data_name, 'batch_size': 32}
     # # data configuration, read from data_config.txt file
     with open(f'data/{data_name}/data_config.txt', encoding='utf8') as i_f:
-        data_config = eval(i_f.readline())
+        data_config = ast.literal_eval(i_f.readline())
     ws_config_dict['max_log'] = data_config['max_log']
     ws_config_dict['exer_n'] = data_config['exer_n']
     ws_config_dict['knowledge_n'] = data_config['knowledge_n']

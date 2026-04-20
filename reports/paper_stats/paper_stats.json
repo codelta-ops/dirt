@@ -1,0 +1,190 @@
+{
+  "metadata": {
+    "workspace_root": "ws\\chapter3_runs",
+    "dataset": "assist2009",
+    "experiments_found": [
+      "full_model",
+      "wo_attention",
+      "wo_consistency",
+      "wo_query",
+      "wo_weight"
+    ],
+    "manuscript_md": "d:\\准备工作\\论文\\DIRT\\DIRT+.md",
+    "generated_files": [
+      "table_3_1_dataset_statistics.csv",
+      "table_3_2_training_config.csv",
+      "table_3_3_main_results.csv",
+      "table_3_4_ablation.csv",
+      "table_3_5_stage_comparison.csv",
+      "paper_stats.md",
+      "paper_stats.json",
+      "README.md"
+    ]
+  },
+  "tables": {
+    "table_3_1_dataset_statistics": [
+      {
+        "Dataset": "assist2009",
+        "#Students": 3079,
+        "#Exercises": 17671,
+        "#Concepts": 123,
+        "#Interactions": 271468,
+        "Correct Rate": 0.658294900319743,
+        "Avg Length": 88.16758687885677,
+        "Max Length": 200
+      }
+    ],
+    "table_3_2_training_config": [
+      {
+        "Setting": "Batch size",
+        "Value": 32
+      },
+      {
+        "Setting": "Epochs (Stage1 / Stage2)",
+        "Value": "N/A / N/A"
+      },
+      {
+        "Setting": "Learning rate",
+        "Value": "Stage1 = 0.002, Stage2 = 0.0006"
+      },
+      {
+        "Setting": "Optimizer",
+        "Value": "Adam"
+      },
+      {
+        "Setting": "Seed",
+        "Value": 2024
+      },
+      {
+        "Setting": "Attention",
+        "Value": "Yes"
+      },
+      {
+        "Setting": "Query-guided aggregation",
+        "Value": "Yes"
+      },
+      {
+        "Setting": "Dynamic weight",
+        "Value": "learnable"
+      },
+      {
+        "Setting": "Consistency",
+        "Value": "Yes"
+      }
+    ],
+    "table_3_3_main_results": [
+      {
+        "Model": "DIRT_1",
+        "AUC": "0.7067",
+        "ACC": "0.6941"
+      },
+      {
+        "Model": "DIRT_2",
+        "AUC": "0.7427",
+        "ACC": "0.7223"
+      },
+      {
+        "Model": "DIRT_3",
+        "AUC": "0.7430",
+        "ACC": "0.7225"
+      },
+      {
+        "Model": "DIRT_4",
+        "AUC": "0.7442",
+        "ACC": "0.7238"
+      },
+      {
+        "Model": "DIRT+_1",
+        "AUC": 0.7120955176484459,
+        "ACC": 0.6942341586235837
+      },
+      {
+        "Model": "DIRT+_2",
+        "AUC": 0.7495485429116118,
+        "ACC": 0.7294838438942509
+      },
+      {
+        "Model": "DIRT+_3",
+        "AUC": 0.7472484462208492,
+        "ACC": 0.7334116659672681
+      },
+      {
+        "Model": "DIRT+_4",
+        "AUC": 0.745831843697001,
+        "ACC": 0.732656315568611
+      }
+    ],
+    "table_3_4_ablation": [
+      {
+        "Variant": "Full Model",
+        "AUC": 0.7465401449589251,
+        "ACC": 0.7330339907679395,
+        "RMSE": 0.4547696108315934
+      },
+      {
+        "Variant": "w/o attention",
+        "AUC": 0.7462899168744923,
+        "ACC": 0.7295845572807386,
+        "RMSE": 0.4572506595983581
+      },
+      {
+        "Variant": "w/o query",
+        "AUC": 0.7412459781898864,
+        "ACC": 0.7208644565673521,
+        "RMSE": 0.45660454797491756
+      },
+      {
+        "Variant": "w/o consistency",
+        "AUC": 0.7459031383202326,
+        "ACC": 0.731875786823332,
+        "RMSE": 0.45505298397976335
+      }
+    ],
+    "table_3_5_stage_comparison": [
+      {
+        "Model": "DIRT+_3",
+        "Stage": "Stage1",
+        "Validation AUC": 0.750296076853282,
+        "Validation ACC": 0.7357399883923389,
+        "Validation RMSE": 0.45418715687128586,
+        "Test AUC": "N/A",
+        "Test ACC": "N/A",
+        "Test RMSE": "N/A",
+        "Best Epoch": 5
+      },
+      {
+        "Model": "DIRT+_3",
+        "Stage": "Stage2",
+        "Validation AUC": 0.7488687935744812,
+        "Validation ACC": 0.7363435867672664,
+        "Validation RMSE": 0.4541470681561963,
+        "Test AUC": 0.7472484462208492,
+        "Test ACC": 0.7334116659672681,
+        "Test RMSE": 0.45464063246378544,
+        "Best Epoch": 3
+      },
+      {
+        "Model": "DIRT+_4",
+        "Stage": "Stage1",
+        "Validation AUC": 0.748176458034923,
+        "Validation ACC": 0.732420197330238,
+        "Validation RMSE": 0.45506057276506584,
+        "Test AUC": "N/A",
+        "Test ACC": "N/A",
+        "Test RMSE": "N/A",
+        "Best Epoch": 5
+      },
+      {
+        "Model": "DIRT+_4",
+        "Stage": "Stage2",
+        "Validation AUC": 0.7462413581943474,
+        "Validation ACC": 0.7340684852002322,
+        "Validation RMSE": 0.45482332173713813,
+        "Test AUC": 0.745831843697001,
+        "Test ACC": 0.732656315568611,
+        "Test RMSE": 0.4548985891994013,
+        "Best Epoch": 0
+      }
+    ]
+  }
+}

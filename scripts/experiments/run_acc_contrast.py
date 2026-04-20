@@ -10,33 +10,21 @@ DEFAULT_MODEL_SCRIPT = os.path.join("models", "dirt_plus.py")
 
 EXPERIMENTS: List[Dict] = [
     {
-        'name': 'acc_control_tc0_range08_20',
-        'purpose': 'Current ACC-best control group.',
+        'name': 'acc_plain_control',
+        'purpose': 'ACC-focused control group without dynamic step weighting.',
         'args': {
-            'loss_weight_mode': 'learnable',
-            'step_weight_hidden_dim': 32,
-            'step_weight_dropout': 0.10,
-            'step_weight_use_teacher_confidence': 0,
-            'step_weight_use_position_feature': 1,
-            'step_weight_min': 0.8,
-            'step_weight_max': 2.0,
+            'loss_weight_mode': 'plain',
             'stage1_lr': 0.002,
-            'stage2_lr': 0.0008,
+            'stage2_lr': 0.0006,
             'lambda_consistency': 0.2,
             'consistency_warmup_epochs': 4
         }
     },
     {
-        'name': 'acc_tc0_range08_20_s2lr0007',
+        'name': 'acc_plain_s2lr0007',
         'purpose': 'Use a milder lower stage2 learning rate to balance validation and test.',
         'args': {
-            'loss_weight_mode': 'learnable',
-            'step_weight_hidden_dim': 32,
-            'step_weight_dropout': 0.10,
-            'step_weight_use_teacher_confidence': 0,
-            'step_weight_use_position_feature': 1,
-            'step_weight_min': 0.8,
-            'step_weight_max': 2.0,
+            'loss_weight_mode': 'plain',
             'stage1_lr': 0.002,
             'stage2_lr': 0.0007,
             'lambda_consistency': 0.2,
@@ -44,35 +32,23 @@ EXPERIMENTS: List[Dict] = [
         }
     },
     {
-        'name': 'acc_tc0_range08_20_lambda015',
+        'name': 'acc_plain_lambda015',
         'purpose': 'Slightly reduce consistency strength to test whether test generalization improves.',
         'args': {
-            'loss_weight_mode': 'learnable',
-            'step_weight_hidden_dim': 32,
-            'step_weight_dropout': 0.10,
-            'step_weight_use_teacher_confidence': 0,
-            'step_weight_use_position_feature': 1,
-            'step_weight_min': 0.8,
-            'step_weight_max': 2.0,
+            'loss_weight_mode': 'plain',
             'stage1_lr': 0.002,
-            'stage2_lr': 0.0008,
+            'stage2_lr': 0.0006,
             'lambda_consistency': 0.15,
             'consistency_warmup_epochs': 4
         }
     },
     {
-        'name': 'acc_tc0_range08_20_warmup5',
+        'name': 'acc_plain_warmup5',
         'purpose': 'Extend consistency warmup slightly for a gentler stage2 transition.',
         'args': {
-            'loss_weight_mode': 'learnable',
-            'step_weight_hidden_dim': 32,
-            'step_weight_dropout': 0.10,
-            'step_weight_use_teacher_confidence': 0,
-            'step_weight_use_position_feature': 1,
-            'step_weight_min': 0.8,
-            'step_weight_max': 2.0,
+            'loss_weight_mode': 'plain',
             'stage1_lr': 0.002,
-            'stage2_lr': 0.0008,
+            'stage2_lr': 0.0006,
             'lambda_consistency': 0.2,
             'consistency_warmup_epochs': 5
         }

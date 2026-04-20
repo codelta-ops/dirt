@@ -1,12 +1,28 @@
+import ast
+import argparse
 import csv
 import json
 import os
+import sys
 from typing import Dict, List, Optional, Tuple
 
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "reports", "chapter3_tables")
 DATASET_NAME = "assist2009"
+DEFAULT_WS_ROOT = os.path.join(PROJECT_ROOT, "ws", "chapter3_runs")
+
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from scripts.reports.export_paper_stats import (  # noqa: E402
+    build_ablation_table,
+    build_main_results_table,
+    build_stage_comparison_table,
+    build_training_config_table,
+    collect_experiment_results,
+    parse_markdown_tables,
+)
 
 
 def ensure_dir(path: str) -> None:
@@ -63,7 +79,7 @@ def markdown_table(fieldnames: List[str], rows: List[Dict]) -> str:
 
 def dataset_stats() -> List[Dict]:
     with open(os.path.join(PROJECT_ROOT, "data", DATASET_NAME, "data_config.txt"), "r", encoding="utf8") as f:
-        cfg = eval(f.read().strip())
+        cfg = ast.literal_eval(f.read().strip())
 
     split_files = ["train_0.json", "val_0.json", "test.json"]
     total_students = 0
@@ -122,105 +138,46 @@ def find_test_record(records: List[Dict], stage: int, epoch: int) -> Optional[Di
     return None
 
 
-def scan_workspace_files() -> List[str]:
-    found = []
-    for root, _, files in os.walk(PROJECT_ROOT):
-        if "metrics.jsonl" in files:
-            found.append(root)
-    return sorted(found)
+def latest_final_summary(records: List[Dict]) -> Optional[Dict]:
+    summaries = [r for r in records if r.get("dtype") == "final_summary"]
+    if not summaries:
+        return None
+    return summaries[-1]
 
 
-def collect_stage_rows_from_logs() -> List[Dict]:
-    rows: List[Dict] = []
-    for ws_dir in scan_workspace_files():
-        ws_name = os.path.basename(ws_dir)
-        if ws_name not in {"DIRT_3", "DIRT_4"}:
+def main_results_table(results: Dict[str, Dict[str, Dict]], manuscript_md: str) -> List[Dict]:
+    manuscript_tables = parse_markdown_tables(manuscript_md)
+    rows = build_main_results_table(results, manuscript_tables)
+    rmse_by_model = {}
+    full = results.get("full_model", {})
+    for attr_name in ["DIRT_1", "DIRT_2", "DIRT_3", "DIRT_4"]:
+        attr = full.get(attr_name, {})
+        if not attr.get("has_final_summary"):
             continue
-        records = read_jsonl(os.path.join(ws_dir, "metrics.jsonl"))
-        for stage in [1, 2]:
-            best_val = find_best_validation_record(records, stage)
-            if best_val is None:
-                continue
-            test_record = find_test_record(records, stage, int(best_val["epoch"]))
-            rows.append(
-                {
-                    "Model": ws_name,
-                    "Stage": stage,
-                    "Validation AUC": float(best_val.get("auc", 0.0)),
-                    "Validation ACC": float(best_val.get("acc", 0.0)),
-                    "Validation RMSE": float(best_val.get("rmse", 0.0)),
-                    "Test AUC": float(test_record.get("auc", 0.0)) if test_record else "N/A",
-                    "Test ACC": float(test_record.get("acc", 0.0)) if test_record else "N/A",
-                    "Test RMSE": float(test_record.get("rmse", 0.0)) if test_record else "N/A",
-                    "Best Epoch": int(best_val.get("epoch", -1)),
-                }
-            )
+        rmse_by_model[f"DIRT+_{attr_name.split('_')[1]}"] = attr["final"].get("Test RMSE", "N/A")
+    for row in rows:
+        row["RMSE"] = rmse_by_model.get(row.get("Model"), row.get("RMSE", "N/A"))
     return rows
 
 
-def collect_dirt_plus_default_result() -> Dict:
-    for ws_dir in scan_workspace_files():
-        cfg_path = os.path.join(ws_dir, "model_config.txt")
-        if not os.path.exists(cfg_path):
-            continue
-        cfg = read_json(cfg_path)
-        if (
-            cfg.get("loss_weight_mode") == "rule"
-            and int(cfg.get("use_adaptive_fusion", 0)) == 1
-            and int(cfg.get("use_temporal_bias", 0)) == 1
-            and int(cfg.get("use_exercise_aware_decay", 0)) == 1
-        ):
-            records = read_jsonl(os.path.join(ws_dir, "metrics.jsonl"))
-            tests = [r for r in records if r.get("dtype") == "test"]
-            if not tests:
-                continue
-            last = tests[-1]
-            return {
-                "Model": "DIRT+ default configuration",
-                "AUC": float(last.get("auc", 0.0)),
-                "ACC": float(last.get("acc", 0.0)),
-                "RMSE": float(last.get("rmse", 0.0)),
-            }
-    return {"Model": "DIRT+ default configuration", "AUC": "N/A", "ACC": "N/A", "RMSE": "N/A"}
-
-
-def main_results_table() -> List[Dict]:
-    models = [
-        "IRT",
-        "DKT",
-        "SAKT",
-        "AKT",
-        "Original DIRT",
-        "Normalized DIRT",
-    ]
-    rows = [{"Model": m, "AUC": "N/A", "ACC": "N/A", "RMSE": "N/A"} for m in models]
-    rows.append(collect_dirt_plus_default_result())
+def ablation_table(results: Dict[str, Dict[str, Dict]]) -> List[Dict]:
+    rows = build_ablation_table(results)
+    variants = {row["Variant"] for row in rows}
+    for variant in ["w/o adaptive fusion", "w/o temporal bias", "w/o exercise-aware decay"]:
+        if variant not in variants:
+            rows.append({"Variant": variant, "AUC": "N/A", "ACC": "N/A", "RMSE": "N/A"})
     return rows
 
 
-def ablation_table() -> List[Dict]:
-    variants = [
-        "Full Model",
-        "w/o attention",
-        "w/o query",
-        "w/o weight",
-        "w/o consistency",
-        "w/o adaptive fusion",
-        "w/o temporal bias",
-        "w/o exercise-aware decay",
-    ]
-    return [{"Variant": v, "AUC": "N/A", "ACC": "N/A", "RMSE": "N/A"} for v in variants]
-
-
-def stage_comparison_table() -> List[Dict]:
-    rows = collect_stage_rows_from_logs()
+def stage_comparison_table(results: Dict[str, Dict[str, Dict]]) -> List[Dict]:
+    rows = build_stage_comparison_table(results)
     if rows:
         return rows
     rows = []
     for model in ["DIRT_3", "DIRT_4"]:
         rows.append(
             {
-                "Model": model,
+                "Model": f"DIRT+_{model.split('_')[1]}",
                 "Stage": "N/A",
                 "Validation AUC": "N/A",
                 "Validation ACC": "N/A",
@@ -234,24 +191,45 @@ def stage_comparison_table() -> List[Dict]:
     return rows
 
 
-def training_config_table() -> List[Dict]:
-    return [
-        {"Setting": "batch size", "Value": 32},
-        {"Setting": "stage1 epochs", "Value": 10},
-        {"Setting": "stage2 epochs", "Value": 5},
-        {"Setting": "stage1 lr", "Value": 0.002},
-        {"Setting": "stage2 lr", "Value": 0.0008},
-        {"Setting": "optimizer", "Value": "Adam"},
-        {"Setting": "grad clip", "Value": 5.0},
-        {"Setting": "scheduler", "Value": "ReduceLROnPlateau (monitor validation AUC)"},
-        {"Setting": "seed", "Value": 2024},
-        {"Setting": "loss_weight_mode", "Value": "learnable (adopted control group)"},
-        {"Setting": "use_adaptive_fusion", "Value": 1},
-        {"Setting": "use_temporal_bias", "Value": 1},
-        {"Setting": "use_exercise_aware_decay", "Value": 1},
-        {"Setting": "use_confidence_consistency", "Value": 1},
-        {"Setting": "use_state_consistency", "Value": 0},
-    ]
+def training_config_table(results: Dict[str, Dict[str, Dict]]) -> List[Dict]:
+    rows = build_training_config_table(results)
+    renamed = []
+    for row in rows:
+        setting = row["Setting"]
+        value = row["Value"]
+        if setting == "Batch size":
+            renamed.append({"Setting": "batch size", "Value": value})
+        elif setting == "Epochs (Stage1 / Stage2)":
+            stage1_epochs, stage2_epochs = [item.strip() for item in str(value).split("/", 1)]
+            renamed.append({"Setting": "stage1 epochs", "Value": stage1_epochs})
+            renamed.append({"Setting": "stage2 epochs", "Value": stage2_epochs})
+        elif setting == "Learning rate":
+            parts = [item.strip() for item in str(value).split(",")]
+            stage1_lr = parts[0].split("=", 1)[1].strip() if len(parts) > 0 and "=" in parts[0] else value
+            stage2_lr = parts[1].split("=", 1)[1].strip() if len(parts) > 1 and "=" in parts[1] else value
+            renamed.append({"Setting": "stage1 lr", "Value": stage1_lr})
+            renamed.append({"Setting": "stage2 lr", "Value": stage2_lr})
+        elif setting == "Optimizer":
+            renamed.append({"Setting": "optimizer", "Value": value})
+        elif setting == "Seed":
+            renamed.append({"Setting": "seed", "Value": value})
+        elif setting == "Dynamic weight":
+            renamed.append({"Setting": "loss_weight_mode", "Value": value})
+        elif setting == "Consistency":
+            renamed.append({"Setting": "use_confidence_consistency", "Value": value})
+        else:
+            renamed.append({"Setting": setting, "Value": value})
+    renamed.extend(
+        [
+            {"Setting": "grad clip", "Value": 5.0},
+            {"Setting": "scheduler", "Value": "ReduceLROnPlateau (monitor validation AUC)"},
+            {"Setting": "use_adaptive_fusion", "Value": 1},
+            {"Setting": "use_temporal_bias", "Value": 1},
+            {"Setting": "use_exercise_aware_decay", "Value": 1},
+            {"Setting": "use_state_consistency", "Value": 0},
+        ]
+    )
+    return renamed
 
 
 def mechanism_analysis_table() -> List[Dict]:
@@ -279,14 +257,15 @@ def multi_seed_table() -> List[Dict]:
     ]
 
 
-def export_tables() -> None:
-    ensure_dir(OUTPUT_DIR)
+def export_tables(ws_root: str, output_dir: str, manuscript_md: str) -> None:
+    ensure_dir(output_dir)
+    results = collect_experiment_results(ws_root)
     tables = [
         ("dataset_statistics", dataset_stats()),
-        ("main_results", main_results_table()),
-        ("ablation_results", ablation_table()),
-        ("stage_comparison", stage_comparison_table()),
-        ("training_configuration", training_config_table()),
+        ("main_results", main_results_table(results, manuscript_md)),
+        ("ablation_results", ablation_table(results)),
+        ("stage_comparison", stage_comparison_table(results)),
+        ("training_configuration", training_config_table(results)),
         ("mechanism_analysis", mechanism_analysis_table()),
         ("multi_seed_stability", multi_seed_table()),
     ]
@@ -304,7 +283,7 @@ def export_tables() -> None:
 
     for name, rows in tables:
         fieldnames = list(rows[0].keys()) if rows else []
-        csv_path = os.path.join(OUTPUT_DIR, f"{name}.csv")
+        csv_path = os.path.join(output_dir, f"{name}.csv")
         write_csv(csv_path, fieldnames, rows)
         md_sections.append(f"## {name}")
         md_sections.append("")
@@ -316,9 +295,22 @@ def export_tables() -> None:
     md_sections.extend(placement_lines)
     md_sections.append("")
 
-    with open(os.path.join(OUTPUT_DIR, "chapter3_tables.md"), "w", encoding="utf8") as f:
+    with open(os.path.join(output_dir, "chapter3_tables.md"), "w", encoding="utf8") as f:
         f.write("\n".join(md_sections))
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Export broad Chapter 3 tables from current experiment logs.")
+    parser.add_argument("--ws_root", type=str, default=DEFAULT_WS_ROOT)
+    parser.add_argument("--output_dir", type=str, default=OUTPUT_DIR)
+    parser.add_argument("--manuscript_md", type=str, default="")
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    export_tables()
+    args = parse_args()
+    export_tables(
+        ws_root=args.ws_root,
+        output_dir=args.output_dir,
+        manuscript_md=args.manuscript_md,
+    )

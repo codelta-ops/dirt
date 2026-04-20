@@ -1,0 +1,10 @@
+Setting,Value
+batch size,32
+epochs (stage1 / stage2),10 / 5
+learning rate,"stage1=0.002, stage2=0.0006"
+optimizer,Adam
+seed,2024
+attention,Yes
+query,Yes
+dynamic weight,learnable
+consistency,Yes

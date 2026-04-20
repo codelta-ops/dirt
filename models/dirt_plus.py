@@ -8,6 +8,7 @@ New modules:
 4. Frozen stage1 teacher consistency in stage2.
 5. Stronger stability / reproducibility defaults.
 """
+import ast
 import argparse
 import json
 import os
@@ -2255,13 +2256,16 @@ if __name__ == '__main__':
     stage2_lr = args.stage2_lr if args.stage2_lr is not None else args.lr * 0.5
 
     with open(f'data/{args.data}/data_config.txt', encoding='utf8') as i_f:
-        data_config = eval(i_f.readline())
+        data_config = ast.literal_eval(i_f.readline())
 
     ws_config_dict = {
         'stu_ho_dim': args.stu_ho_dim,
         'rnn_type': args.rnn_type,
         'attr_idx': 1,
         'data': args.data,
+        'cross_idx': args.cross_idx,
+        'stage1_epochs': args.stage1_epochs,
+        'stage2_epochs': args.stage2_epochs,
         'batch_size': args.batch_size,
         'max_log': data_config['max_log'],
         'exer_n': data_config['exer_n'],
