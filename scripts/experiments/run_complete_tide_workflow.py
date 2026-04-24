@@ -95,6 +95,8 @@ def build_ablation_command(args) -> List[str]:
         str(args.stage2_epochs),
         "--attr_indices",
         args.attr_indices,
+        "--experiments",
+        "wo_attention,wo_query,wo_weight,wo_consistency",
         "--ws_root",
         args.full_ws_root,
     ]

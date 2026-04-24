@@ -137,6 +137,18 @@ def resolve_seed_values(args) -> List[int]:
     return [args.seed]
 
 
+def resolve_experiments(args) -> List[Dict]:
+    if not args.experiments:
+        return EXPERIMENTS
+
+    selected_names = parse_string_list(args.experiments)
+    lookup = {exp["name"]: exp for exp in EXPERIMENTS}
+    missing = [name for name in selected_names if name not in lookup]
+    if missing:
+        raise ValueError(f"Unknown experiment names: {', '.join(missing)}")
+    return [lookup[name] for name in selected_names]
+
+
 def build_run_ws_root(base_ws_root: str, dataset_name: str, seed: int, multi_run: bool) -> str:
     return os.path.join(base_ws_root, dataset_name, f"seed_{seed}")
 
@@ -285,6 +297,7 @@ def build_label(exp_config):
 def print_commands(args):
     dataset_names = resolve_dataset_names(args)
     seed_values = resolve_seed_values(args)
+    selected_experiments = resolve_experiments(args)
     multi_run = len(dataset_names) > 1 or len(seed_values) > 1
 
     for dataset_name in dataset_names:
@@ -299,7 +312,7 @@ def print_commands(args):
                 f"# Dataset: {args.current_data}, Seed: {args.current_seed}, "
                 f"Workspace: {args.current_ws_root}"
             )
-            for exp in EXPERIMENTS:
+            for exp in selected_experiments:
                 print(f"# Experiment: {build_label(exp)}")
                 print(f"# Purpose: {exp['purpose']}")
                 print(" ".join(build_command(args, exp)))
@@ -309,6 +322,7 @@ def print_commands(args):
 def run_commands(args, skip_completed=False):
     dataset_names = resolve_dataset_names(args)
     seed_values = resolve_seed_values(args)
+    selected_experiments = resolve_experiments(args)
     multi_run = len(dataset_names) > 1 or len(seed_values) > 1
 
     for dataset_name in dataset_names:
@@ -324,18 +338,18 @@ def run_commands(args, skip_completed=False):
                 f">>> Dataset={args.current_data}, Seed={args.current_seed}, "
                 f"Workspace={args.current_ws_root}"
             )
-            for idx, exp in enumerate(EXPERIMENTS, start=1):
+            for idx, exp in enumerate(selected_experiments, start=1):
                 attr_indices = parse_attr_indices(args.attr_indices)
                 if skip_completed:
                     attr_indices = get_pending_attr_indices(args, exp)
                     if not attr_indices:
                         print(
-                            f">>> Skipping [{idx}/{len(EXPERIMENTS)}] {exp['name']} "
+                            f">>> Skipping [{idx}/{len(selected_experiments)}] {exp['name']} "
                             "(all requested attr_indices already completed)"
                         )
                         continue
                 cmd = build_command(args, exp, attr_indices_override=attr_indices)
-                print(f">>> Running [{idx}/{len(EXPERIMENTS)}] {build_label(exp)}")
+                print(f">>> Running [{idx}/{len(selected_experiments)}] {build_label(exp)}")
                 print(f">>> Purpose: {exp['purpose']}")
                 print(f">>> Attr indices: {','.join(str(item) for item in attr_indices)}")
                 print(" ".join(cmd))
@@ -357,6 +371,7 @@ def parse_args():
     parser.add_argument("--stage2_epochs", type=int, default=5)
     parser.add_argument("--attr_indices", type=str, default="1,2,3,4")
     parser.add_argument("--ws_root", type=str, default="ws/chapter3_runs")
+    parser.add_argument("--experiments", type=str, default=None)
     return parser.parse_args()
 
 

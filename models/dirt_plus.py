@@ -2053,8 +2053,8 @@ def run_dirt_plus_experiment(ws, device, cross_idx, stage1_epochs, stage2_epochs
     attr_idx = ws_config['attr_idx']
     if attr_idx not in [1, 2, 3, 4]:
         raise ValueError('attr_idx must be one of [1, 2, 3, 4].')
-    if ws_config['stage2_lr'] >= ws_config['stage1_lr']:
-        raise ValueError('stage2_lr must be smaller than stage1_lr for stable stage-wise fine-tuning.')
+    if ws_config['stage2_lr'] <= 0 or ws_config['stage1_lr'] <= 0:
+        raise ValueError('stage1_lr and stage2_lr must be positive.')
 
     reset_metric_logs(ws)
     train_stage1(
