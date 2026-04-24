@@ -113,7 +113,7 @@ def parse_args():
     parser.add_argument("--stage1_epochs", type=int, default=10)
     parser.add_argument("--stage2_epochs", type=int, default=5)
     parser.add_argument("--full_stage1_lr", type=float, default=0.002)
-    parser.add_argument("--full_stage2_lr", type=float, default=0.0006)
+    parser.add_argument("--full_stage2_lr", type=float, default=0.002)
     parser.add_argument("--lambda_consistency", type=float, default=0.2)
     parser.add_argument("--consistency_warmup_epochs", type=int, default=4)
     args = parser.parse_args()

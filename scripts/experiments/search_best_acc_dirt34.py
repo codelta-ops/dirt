@@ -16,29 +16,7 @@ EXPERIMENTS: List[Dict] = [
         "args": {
             "loss_weight_mode": "plain",
             "stage1_lr": 0.002,
-            "stage2_lr": 0.0006,
-            "lambda_consistency": 0.2,
-            "consistency_warmup_epochs": 4,
-        },
-    },
-    {
-        "name": "acc_plain_s2lr0006",
-        "purpose": "Lower stage2 lr to maximize validation ACC on DIRT_3/4.",
-        "args": {
-            "loss_weight_mode": "plain",
-            "stage1_lr": 0.002,
-            "stage2_lr": 0.0006,
-            "lambda_consistency": 0.2,
-            "consistency_warmup_epochs": 4,
-        },
-    },
-    {
-        "name": "acc_plain_s2lr0007",
-        "purpose": "Moderately lower stage2 lr for a softer stage2 update.",
-        "args": {
-            "loss_weight_mode": "plain",
-            "stage1_lr": 0.002,
-            "stage2_lr": 0.0007,
+            "stage2_lr": 0.002,
             "lambda_consistency": 0.2,
             "consistency_warmup_epochs": 4,
         },
@@ -49,7 +27,7 @@ EXPERIMENTS: List[Dict] = [
         "args": {
             "loss_weight_mode": "plain",
             "stage1_lr": 0.002,
-            "stage2_lr": 0.0006,
+            "stage2_lr": 0.002,
             "lambda_consistency": 0.15,
             "consistency_warmup_epochs": 4,
         },
@@ -60,7 +38,7 @@ EXPERIMENTS: List[Dict] = [
         "args": {
             "loss_weight_mode": "plain",
             "stage1_lr": 0.002,
-            "stage2_lr": 0.0006,
+            "stage2_lr": 0.002,
             "lambda_consistency": 0.2,
             "consistency_warmup_epochs": 5,
         },

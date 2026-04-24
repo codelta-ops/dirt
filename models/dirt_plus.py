@@ -24,13 +24,13 @@ from sklearn.metrics import roc_auc_score
 
 EPSILON = 1e-8
 DEFAULT_LOSS_WEIGHT_CONFIG = {
-    'loss_weight_mode': 'rule',
+    'loss_weight_mode': 'learnable',
     'step_weight_hidden_dim': 32,
     'step_weight_dropout': 0.1,
-    'step_weight_use_teacher_confidence': 1,
+    'step_weight_use_teacher_confidence': 0,
     'step_weight_use_position_feature': 1,
-    'step_weight_min': 0.5,
-    'step_weight_max': 3.0,
+    'step_weight_min': 0.8,
+    'step_weight_max': 2.0,
     'focal_gamma': 2.0,
     'focal_alpha': None,
     'use_temporal_self_attention': 1,
@@ -90,7 +90,7 @@ def build_experiment_name(args):
         return args.exp_name
     loss_mode = args.loss_weight_mode
     stage1_lr_str = f'{args.stage1_lr if args.stage1_lr is not None else args.lr:.4g}'.replace('.', 'p')
-    stage2_lr_str = f'{args.stage2_lr if args.stage2_lr is not None else args.lr * 0.5:.4g}'.replace('.', 'p')
+    stage2_lr_str = f'{args.stage2_lr if args.stage2_lr is not None else args.lr:.4g}'.replace('.', 'p')
     range_str = f'{args.step_weight_min:.2f}_{args.step_weight_max:.2f}'.replace('.', 'p')
     focal_str = f'{args.focal_gamma:.2f}'.replace('.', 'p')
     return (
@@ -586,7 +586,7 @@ class TemporalFusionLayer(nn.Module):
 
 
 class LearnableStepWeightNet(nn.Module):
-    def __init__(self, input_dim, hidden_dim=32, dropout=0.1, min_weight=0.5, max_weight=3.0):
+    def __init__(self, input_dim, hidden_dim=32, dropout=0.1, min_weight=0.8, max_weight=2.0):
         super().__init__()
         self.min_weight = float(min_weight)
         self.max_weight = float(max_weight)
@@ -641,8 +641,8 @@ class DIRTPlusModel(nn.Module):
         adaptive_fusion_hidden_dim=None,
         step_weight_hidden_dim=32,
         step_weight_dropout=0.1,
-        step_weight_min=0.5,
-        step_weight_max=3.0
+        step_weight_min=0.8,
+        step_weight_max=2.0
     ):
         super().__init__()
         self.stu_ho_dim = stu_ho_dim
@@ -970,7 +970,7 @@ def compute_dynamic_weighted_loss(pred_out, corrs, valid_mask, next_knowledge_re
     knowledge_density = knowledge_density / knowledge_density.max(dim=1, keepdim=True).values.clamp_min(1.0)
     uncertainty = 1.0 - torch.abs(pred_prob.detach() - 0.5) * 2.0
     weights = 1.0 + 0.35 * knowledge_density + 0.35 * uncertainty
-    weights = torch.clamp(weights, min=0.5, max=3.0)
+    weights = torch.clamp(weights, min=0.8, max=2.0)
 
     valid_mask_float = valid_mask.float()
     effective_weights = weights * valid_mask_float
@@ -1066,7 +1066,7 @@ def build_rule_step_weights(pred_prob, next_knowledge_relevancies):
     knowledge_density = knowledge_density / knowledge_density.max(dim=1, keepdim=True).values.clamp_min(1.0)
     uncertainty = 1.0 - torch.abs(pred_prob.detach() - 0.5) * 2.0
     weights = 1.0 + 0.35 * knowledge_density + 0.35 * uncertainty
-    return torch.clamp(weights, min=0.5, max=3.0)
+    return torch.clamp(weights, min=0.8, max=2.0)
 
 
 def compute_masked_correlation(x, y, valid_mask):
@@ -1088,12 +1088,12 @@ def compute_step_weighted_pred_loss(
     corrs,
     valid_mask,
     next_knowledge_relevancies,
-    loss_weight_mode='rule',
+    loss_weight_mode='learnable',
     step_weight_net=None,
     fused_hidden=None,
     exercise_embedding=None,
     teacher_confidence=None,
-    step_weight_use_teacher_confidence=1,
+    step_weight_use_teacher_confidence=0,
     step_weight_use_position_feature=1,
     focal_gamma=2.0,
     focal_alpha=None
@@ -1622,7 +1622,7 @@ def train_stage2(
     lr=0.002,
     grad_clip=5.0,
     lambda_consistency=0.2,
-    consistency_warmup_epochs=3,
+    consistency_warmup_epochs=4,
     consistency_warmup_start_ratio=0.2,
     use_confidence_consistency=0,
     confidence_consistency_mode='prob_margin',
@@ -2201,7 +2201,7 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=2024)
     parser.add_argument('--grad_clip', type=float, default=5.0)
     parser.add_argument('--lambda_consistency', type=float, default=0.2)
-    parser.add_argument('--consistency_warmup_epochs', type=int, default=3)
+    parser.add_argument('--consistency_warmup_epochs', type=int, default=4)
     parser.add_argument('--consistency_warmup_start_ratio', type=float, default=0.2)
     parser.add_argument('--use_confidence_consistency', type=int, default=1)
     parser.add_argument('--confidence_consistency_mode', type=str, default='prob_margin')
@@ -2226,13 +2226,13 @@ def parse_args():
     parser.add_argument('--state_consistency_loss', type=str, default='smooth_l1')
     parser.add_argument('--lambda_state_consistency', type=float, default=0.05)
     parser.add_argument('--use_confidence_for_state_consistency', type=int, default=1)
-    parser.add_argument('--loss_weight_mode', type=str, default='rule')
+    parser.add_argument('--loss_weight_mode', type=str, default='learnable')
     parser.add_argument('--step_weight_hidden_dim', type=int, default=32)
     parser.add_argument('--step_weight_dropout', type=float, default=0.1)
-    parser.add_argument('--step_weight_use_teacher_confidence', type=int, default=1)
+    parser.add_argument('--step_weight_use_teacher_confidence', type=int, default=0)
     parser.add_argument('--step_weight_use_position_feature', type=int, default=1)
-    parser.add_argument('--step_weight_min', type=float, default=0.5)
-    parser.add_argument('--step_weight_max', type=float, default=3.0)
+    parser.add_argument('--step_weight_min', type=float, default=0.8)
+    parser.add_argument('--step_weight_max', type=float, default=2.0)
     parser.add_argument('--focal_gamma', type=float, default=2.0)
     parser.add_argument('--focal_alpha', type=float, default=None)
     parser.add_argument('--exp_name', type=str, default=None)
@@ -2253,7 +2253,7 @@ if __name__ == '__main__':
     set_global_seed(args.seed)
     exp_name = build_experiment_name(args)
     stage1_lr = args.stage1_lr if args.stage1_lr is not None else args.lr
-    stage2_lr = args.stage2_lr if args.stage2_lr is not None else args.lr * 0.5
+    stage2_lr = args.stage2_lr if args.stage2_lr is not None else args.lr
 
     with open(f'data/{args.data}/data_config.txt', encoding='utf8') as i_f:
         data_config = ast.literal_eval(i_f.readline())
