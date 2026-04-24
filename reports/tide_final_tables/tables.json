@@ -1,0 +1,175 @@
+{
+  "metadata": {
+    "full_ws_root": "D:\\准备工作\\论文\\DIRT\\projects\\Dynamic-Cognitive-Diagnosis\\ws\\chapter3_runs",
+    "base_ws_root": "D:\\准备工作\\论文\\DIRT\\projects\\Dynamic-Cognitive-Diagnosis\\ws\\chapter3_runs",
+    "datasets": [
+      "assist2009",
+      "assist2012",
+      "kddcup"
+    ],
+    "seed": 2024,
+    "counts": {
+      "dataset_rows": 3,
+      "training_rows": 12,
+      "long_rows": 0,
+      "main_rows": 8,
+      "ablation_rows": 0,
+      "ablation_detail_rows": 0,
+      "stage_rows": 0
+    }
+  },
+  "table_3_1_dataset_statistics": [
+    {
+      "Dataset": "ASSIST2009",
+      "#Students": 3079,
+      "#Exercises": 17671,
+      "#Concepts": 123,
+      "#Interactions": 271468,
+      "Correct Rate": 0.658294900319743
+    },
+    {
+      "Dataset": "ASSIST2012",
+      "#Students": 25270,
+      "#Exercises": 32726,
+      "#Concepts": 252,
+      "#Interactions": 2536321,
+      "Correct Rate": 0.6978911580986792
+    },
+    {
+      "Dataset": "KDDCup",
+      "#Students": 7528,
+      "#Exercises": 26964,
+      "#Concepts": 373,
+      "#Interactions": 1408029,
+      "Correct Rate": 0.8371581835317312
+    }
+  ],
+  "table_3_2_training_config": [
+    {
+      "Setting": "cross_idx",
+      "Value": 0
+    },
+    {
+      "Setting": "seed",
+      "Value": 2024
+    },
+    {
+      "Setting": "batch size",
+      "Value": 32
+    },
+    {
+      "Setting": "epochs (stage1 / stage2)",
+      "Value": "10 / 5"
+    },
+    {
+      "Setting": "learning rate",
+      "Value": "stage1=0.002, stage2=0.002"
+    },
+    {
+      "Setting": "optimizer",
+      "Value": "Adam"
+    },
+    {
+      "Setting": "causal temporal enhancement",
+      "Value": "Yes"
+    },
+    {
+      "Setting": "target-aware history aggregation",
+      "Value": "Yes"
+    },
+    {
+      "Setting": "dynamic step weight",
+      "Value": "learnable"
+    },
+    {
+      "Setting": "stage2 consistency",
+      "Value": "Yes"
+    },
+    {
+      "Setting": "scheduler",
+      "Value": "ReduceLROnPlateau (monitor validation AUC, patience=1)"
+    },
+    {
+      "Setting": "stage2 applies to",
+      "Value": "TIDE_3 / TIDE_4 only"
+    }
+  ],
+  "table_3_3_main_results": [
+    {
+      "Model": "DIRT_1",
+      "ASSIST2009 AUC": "",
+      "ASSIST2009 ACC": "",
+      "ASSIST2012 AUC": "",
+      "ASSIST2012 ACC": "",
+      "KDDCup AUC": "",
+      "KDDCup ACC": ""
+    },
+    {
+      "Model": "DIRT_2",
+      "ASSIST2009 AUC": "",
+      "ASSIST2009 ACC": "",
+      "ASSIST2012 AUC": "",
+      "ASSIST2012 ACC": "",
+      "KDDCup AUC": "",
+      "KDDCup ACC": ""
+    },
+    {
+      "Model": "DIRT_3",
+      "ASSIST2009 AUC": "",
+      "ASSIST2009 ACC": "",
+      "ASSIST2012 AUC": "",
+      "ASSIST2012 ACC": "",
+      "KDDCup AUC": "",
+      "KDDCup ACC": ""
+    },
+    {
+      "Model": "DIRT_4",
+      "ASSIST2009 AUC": "",
+      "ASSIST2009 ACC": "",
+      "ASSIST2012 AUC": "",
+      "ASSIST2012 ACC": "",
+      "KDDCup AUC": "",
+      "KDDCup ACC": ""
+    },
+    {
+      "Model": "TIDE_1",
+      "ASSIST2009 AUC": "",
+      "ASSIST2009 ACC": "",
+      "ASSIST2012 AUC": "",
+      "ASSIST2012 ACC": "",
+      "KDDCup AUC": "",
+      "KDDCup ACC": ""
+    },
+    {
+      "Model": "TIDE_2",
+      "ASSIST2009 AUC": "",
+      "ASSIST2009 ACC": "",
+      "ASSIST2012 AUC": "",
+      "ASSIST2012 ACC": "",
+      "KDDCup AUC": "",
+      "KDDCup ACC": ""
+    },
+    {
+      "Model": "TIDE_3",
+      "ASSIST2009 AUC": "",
+      "ASSIST2009 ACC": "",
+      "ASSIST2012 AUC": "",
+      "ASSIST2012 ACC": "",
+      "KDDCup AUC": "",
+      "KDDCup ACC": ""
+    },
+    {
+      "Model": "TIDE_4",
+      "ASSIST2009 AUC": "",
+      "ASSIST2009 ACC": "",
+      "ASSIST2012 AUC": "",
+      "ASSIST2012 ACC": "",
+      "KDDCup AUC": "",
+      "KDDCup ACC": ""
+    }
+  ],
+  "table_3_4_ablation": [],
+  "table_3_4_ablation_detail": [],
+  "table_3_5_stage_comparison": [],
+  "long_results": []
+}

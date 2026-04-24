@@ -9,7 +9,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DEFAULT_OUTPUT_DIR = os.path.join(PROJECT_ROOT, "reports", "tide_final_tables")
 DEFAULT_FULL_WS_ROOT = os.path.join(PROJECT_ROOT, "ws", "chapter3_runs")
-DEFAULT_BASE_WS_ROOT = os.path.join(PROJECT_ROOT, "ws", "dirt")
+DEFAULT_BASE_WS_ROOT = os.path.join(PROJECT_ROOT, "ws", "chapter3_runs")
 DEFAULT_DATASETS = ["assist2009", "assist2012", "kddcup"]
 
 DATASET_DISPLAY = {
@@ -45,8 +45,8 @@ MAIN_TABLE_HEADERS = [
     "KDDCup ACC",
 ]
 
-ABLATION_SUMMARY_HEADERS = ["Variant", "Dataset", "Seed", "AUC", "ACC", "RMSE"]
-ABLATION_DETAIL_HEADERS = ["Variant", "Model", "Dataset", "Seed", "AUC", "ACC", "RMSE"]
+ABLATION_SUMMARY_HEADERS = ["Model", "Variant", "Dataset", "Seed", "AUC", "ACC", "RMSE"]
+ABLATION_DETAIL_HEADERS = ["Model", "Variant", "Dataset", "Seed", "AUC", "ACC", "RMSE", "Best Stage", "Best Epoch"]
 STAGE_HEADERS = [
     "Dataset",
     "Model",
@@ -181,8 +181,17 @@ def full_metrics_path(full_ws_root: str, dataset: str, seed: int, exp_name: str,
     return os.path.join(full_ws_root, dataset, f"seed_{seed}", exp_name, f"DIRT_{attr_idx}", "metrics.jsonl")
 
 
-def base_metrics_path(base_ws_root: str, dataset: str, attr_idx: int) -> str:
-    return os.path.join(base_ws_root, dataset, f"DIRT_{attr_idx}", "metrics.jsonl")
+def base_metrics_path(base_ws_root: str, dataset: str, seed: int, attr_idx: int) -> str:
+    unified_path = os.path.join(base_ws_root, dataset, f"seed_{seed}", "base_model", f"DIRT_{attr_idx}", "metrics.jsonl")
+    if os.path.exists(unified_path):
+        return unified_path
+
+    legacy_same_root = os.path.join(base_ws_root, dataset, f"DIRT_{attr_idx}", "metrics.jsonl")
+    if os.path.exists(legacy_same_root):
+        return legacy_same_root
+
+    legacy_dirt_root = os.path.join(PROJECT_ROOT, "ws", "dirt", dataset, f"DIRT_{attr_idx}", "metrics.jsonl")
+    return legacy_dirt_root
 
 
 def latest_record(records: List[Dict], dtype: str) -> Optional[Dict]:
@@ -221,7 +230,7 @@ def matching_test_record(records: List[Dict], stage: int, epoch: int) -> Optiona
 
 
 def collect_base_result(base_ws_root: str, dataset: str, attr_idx: int, seed: int) -> Optional[Dict]:
-    path = base_metrics_path(base_ws_root, dataset, attr_idx)
+    path = base_metrics_path(base_ws_root, dataset, seed, attr_idx)
     records = read_jsonl(path)
     if not records:
         return None
@@ -303,10 +312,6 @@ def collect_main_table(long_rows: List[Dict]) -> List[Dict]:
     return rows
 
 
-def mean_or_blank(values: List[float]):
-    return sum(values) / len(values) if values else ""
-
-
 def collect_ablation_tables(full_ws_root: str, seed: int) -> Tuple[List[Dict], List[Dict]]:
     variants = {
         "Full Model": "full_model",
@@ -315,37 +320,37 @@ def collect_ablation_tables(full_ws_root: str, seed: int) -> Tuple[List[Dict], L
         "w/o weight": "wo_weight",
         "w/o consistency": "wo_consistency",
     }
+    variant_order = {name: index for index, name in enumerate(variants.keys())}
+    model_order = {f"TIDE_{idx}": idx for idx in [1, 2, 3, 4]}
     detail_rows: List[Dict] = []
     summary_rows: List[Dict] = []
     dataset = "assist2009"
 
     for variant_name, exp_name in variants.items():
-        variant_rows: List[Dict] = []
         for attr_idx in [1, 2, 3, 4]:
             row = collect_full_result(full_ws_root, dataset, attr_idx, seed, exp_name=exp_name)
             if row is None:
                 continue
-            detail_row = {
-                "Variant": variant_name,
+            summary_row = {
                 "Model": row["模型"],
+                "Variant": variant_name,
                 "Dataset": row["数据集"],
                 "Seed": row["种子"],
                 "AUC": row["AUC"],
                 "ACC": row["ACC"],
                 "RMSE": row["RMSE"],
             }
+            summary_rows.append(summary_row)
+
+            detail_row = {
+                **summary_row,
+                "Best Stage": row["stage"],
+                "Best Epoch": row["epoch"],
+            }
             detail_rows.append(detail_row)
-            variant_rows.append(detail_row)
 
-        summary_rows.append({
-            "Variant": variant_name,
-            "Dataset": DATASET_DISPLAY[dataset],
-            "Seed": seed,
-            "AUC": mean_or_blank([float(row["AUC"]) for row in variant_rows]),
-            "ACC": mean_or_blank([float(row["ACC"]) for row in variant_rows]),
-            "RMSE": mean_or_blank([float(row["RMSE"]) for row in variant_rows]),
-        })
-
+    summary_rows.sort(key=lambda row: (model_order.get(row["Model"], 999), variant_order.get(row["Variant"], 999)))
+    detail_rows.sort(key=lambda row: (model_order.get(row["Model"], 999), variant_order.get(row["Variant"], 999)))
     return summary_rows, detail_rows
 
 
@@ -403,7 +408,8 @@ def write_readme(output_dir: str, metadata: Dict) -> None:
         "",
         "Notes:",
         "- `table_3_3_main_results.csv` uses only official TIDE and base DIRT result paths.",
-        "- `table_3_4_ablation.csv` averages `TIDE_1~4` on ASSIST2009.",
+        "- `table_3_4_ablation.csv` reports ASSIST2009 ablations separately for `TIDE_1~4`.",
+        "- `table_3_4_ablation_detail.csv` adds best stage / epoch metadata for each ablation run.",
         "- `table_3_5_stage_comparison.csv` reports `TIDE_3 / TIDE_4` stage-wise metrics.",
         "- If workspaces are empty, result tables will be created with headers but no metrics.",
         "",

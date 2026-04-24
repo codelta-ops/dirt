@@ -138,8 +138,6 @@ def resolve_seed_values(args) -> List[int]:
 
 
 def build_run_ws_root(base_ws_root: str, dataset_name: str, seed: int, multi_run: bool) -> str:
-    if not multi_run:
-        return base_ws_root
     return os.path.join(base_ws_root, dataset_name, f"seed_{seed}")
 
 

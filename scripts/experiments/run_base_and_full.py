@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import subprocess
 from typing import List
@@ -17,6 +18,50 @@ def format_command(cmd: List[str]) -> str:
     return " ".join(cmd)
 
 
+def has_metric_record(metrics_path: str, dtype: str) -> bool:
+    if not os.path.exists(metrics_path):
+        return False
+    with open(metrics_path, "r", encoding="utf8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if record.get("dtype") == dtype:
+                return True
+    return False
+
+
+def base_dataset_root(args, dataset: str) -> str:
+    return os.path.join(args.base_ws_root, dataset, f"seed_{args.seed}", "base_model")
+
+
+def base_metrics_path(args, dataset: str, attr_idx: int) -> str:
+    return os.path.join(base_dataset_root(args, dataset), f"DIRT_{attr_idx}", "metrics.jsonl")
+
+
+def full_metrics_path(args, dataset: str, attr_idx: int) -> str:
+    return os.path.join(
+        args.full_ws_root,
+        dataset,
+        f"seed_{args.seed}",
+        "full_model",
+        f"DIRT_{attr_idx}",
+        "metrics.jsonl",
+    )
+
+
+def is_base_dataset_complete(args, dataset: str) -> bool:
+    return all(has_metric_record(base_metrics_path(args, dataset, attr_idx), "test") for attr_idx in [1, 2, 3, 4])
+
+
+def is_full_dataset_complete(args, dataset: str) -> bool:
+    return all(has_metric_record(full_metrics_path(args, dataset, attr_idx), "final_summary") for attr_idx in [1, 2, 3, 4])
+
+
 def build_base_command(args, dataset: str) -> List[str]:
     return [
         args.python_bin,
@@ -28,7 +73,7 @@ def build_base_command(args, dataset: str) -> List[str]:
         "--batch_size", str(args.batch_size),
         "--stu_ho_dim", str(args.stu_ho_dim),
         "--rnn_type", args.rnn_type,
-        "--ws_root", os.path.join(args.base_ws_root, dataset),
+        "--ws_root", base_dataset_root(args, dataset),
     ]
 
 
@@ -77,25 +122,31 @@ def print_commands(args) -> None:
         print()
 
 
-def run_commands(args) -> None:
+def run_commands(args, skip_completed: bool = False) -> None:
     datasets = parse_string_list(args.datasets)
     for dataset in datasets:
         print(f">>> Dataset={dataset}")
         if args.run_base:
-            cmd = build_base_command(args, dataset)
-            print(">>> Running base")
-            print(format_command(cmd))
-            subprocess.run(cmd, check=True)
+            if skip_completed and is_base_dataset_complete(args, dataset):
+                print(">>> Skipping base (all DIRT_1~4 already completed)")
+            else:
+                cmd = build_base_command(args, dataset)
+                print(">>> Running base")
+                print(format_command(cmd))
+                subprocess.run(cmd, check=True)
         if args.run_full:
-            cmd = build_full_command(args, dataset)
-            print(">>> Running full")
-            print(format_command(cmd))
-            subprocess.run(cmd, check=True)
+            if skip_completed and is_full_dataset_complete(args, dataset):
+                print(">>> Skipping full (all TIDE_1~4 already completed)")
+            else:
+                cmd = build_full_command(args, dataset)
+                print(">>> Running full")
+                print(format_command(cmd))
+                subprocess.run(cmd, check=True)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run only base and weighted full experiments for selected datasets.")
-    parser.add_argument("--mode", type=str, default="print", choices=["print", "run"])
+    parser.add_argument("--mode", type=str, default="print", choices=["print", "run", "resume"])
     parser.add_argument("--python_bin", type=str, default="python")
     parser.add_argument("--datasets", type=str, default="assist2009,assist2012,kddcup")
     parser.add_argument("--cross_idx", type=int, default=0)
@@ -104,7 +155,7 @@ def parse_args():
     parser.add_argument("--attr_indices", type=str, default="1,2,3,4")
     parser.add_argument("--run_base", action="store_true")
     parser.add_argument("--run_full", action="store_true")
-    parser.add_argument("--base_ws_root", type=str, default="ws/dirt")
+    parser.add_argument("--base_ws_root", type=str, default="ws/chapter3_runs")
     parser.add_argument("--full_ws_root", type=str, default="ws/chapter3_runs")
     parser.add_argument("--base_lr", type=float, default=0.002)
     parser.add_argument("--batch_size", type=int, default=32)
@@ -128,5 +179,7 @@ if __name__ == "__main__":
     os.chdir(PROJECT_ROOT)
     if args.mode == "print":
         print_commands(args)
+    elif args.mode == "resume":
+        run_commands(args, skip_completed=True)
     else:
         run_commands(args)
